@@ -7,7 +7,7 @@
 #define WIFI_PASSWORD "YOURAPPASSWORD"
 #define POST_URL "http://YOURSERVERNAMEORIP:3000/"
 #define SCAN_TIME  30 // seconds
-#define WAIT_WIFI_TIME 30 // seconds
+#define WAIT_WIFI_LOOP 5 // around 4 seconds for 1 loop
 #define SLEEP_TIME  300 // seconds
 // comment the follow line to disable serial message
 #define SERIAL_PRINT
@@ -22,6 +22,7 @@
 
 #include <WiFi.h>
 #include <WiFiMulti.h>
+#include <esp_wifi.h>
 
 #include <HTTPClient.h>
 
@@ -46,6 +47,7 @@ class MyAdvertisedDeviceCallbacks : public BLEAdvertisedDeviceCallbacks
 void setup()
 {
   WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0); //disable brownout detector
+  esp_wifi_stop();
 
 #ifdef SERIAL_PRINT
   Serial.begin(115200);
@@ -167,16 +169,20 @@ void loop()
   }
 
   // wait WiFi connected
-  if (data_sent || (wait_wifi_counter > WAIT_WIFI_TIME)) {
+  if (data_sent || (wait_wifi_counter > WAIT_WIFI_LOOP)) {
     esp_sleep_enable_timer_wakeup(SLEEP_TIME * 1000000); // translate second to micro second
 
 #ifdef SERIAL_PRINT
-    Serial.printf("Enter deep sleep for %d seconds...\n", (SLEEP_TIME));
+    Serial.printf("Enter deep sleep for %d seconds...\n", SLEEP_TIME);
 #endif
 
+    esp_wifi_stop();
     esp_deep_sleep_start();
   } else {
-    delay(1000);
     wait_wifi_counter++;
+
+#ifdef SERIAL_PRINT
+    Serial.printf("Waiting count: %d\n", wait_wifi_counter);
+#endif
   }
 }

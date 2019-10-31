@@ -6,11 +6,9 @@
 #define WIFI_SSID "YOURAPSSID"
 #define WIFI_PASSWORD "YOURAPPASSWORD"
 #define POST_URL "http://YOURSERVERNAMEORIP:3000/"
-#define SCAN_TIME  30 // seconds
+#define SCAN_TIME 30     // seconds
 #define WAIT_WIFI_LOOP 5 // around 4 seconds for 1 loop
-#define SLEEP_TIME  300 // seconds
-// comment the follow line to disable serial message
-#define SERIAL_PRINT
+#define SLEEP_TIME 300   // seconds
 
 #include <Arduino.h>
 #include <sstream>
@@ -36,25 +34,22 @@ int wait_wifi_counter = 0;
 
 class MyAdvertisedDeviceCallbacks : public BLEAdvertisedDeviceCallbacks
 {
-    void onResult(BLEAdvertisedDevice advertisedDevice)
-    {
-#ifdef SERIAL_PRINT
-      Serial.printf("Advertised Device: %s \n", advertisedDevice.toString().c_str());
-#endif
-    }
+  void onResult(BLEAdvertisedDevice advertisedDevice)
+  {
+    log_i("Advertised Device: %s \n", advertisedDevice.toString().c_str());
+  }
 };
 
 void setup()
 {
-  WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0); //disable brownout detector
-  esp_wifi_stop();
+  log_i("ESP32 BLE Scanner");
 
-#ifdef SERIAL_PRINT
-  Serial.begin(115200);
-  Serial.println("ESP32 BLE Scanner");
-#endif
+  // disable brownout detector to maximize battery life
+  log_i("disable brownout detector");
+  WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);
 
-  BLEDevice::init("");
+  log_i("BLEDevice::init(LOG_TAG)");
+  BLEDevice::init(LOG_TAG);
 
   // put your main code here, to run repeatedly:
   BLEScan *pBLEScan = BLEDevice::getScan(); //create new scan
@@ -63,16 +58,15 @@ void setup()
   pBLEScan->setInterval(0x50);
   pBLEScan->setWindow(0x30);
 
-#ifdef SERIAL_PRINT
-  Serial.printf("Start BLE scan for %d seconds...\n", SCAN_TIME);
-#endif
+  log_i("Start BLE scan for %d seconds...\n", SCAN_TIME);
 
   BLEScanResults foundDevices = pBLEScan->start(SCAN_TIME);
   int count = foundDevices.getCount();
   ss << "[";
   for (int i = 0; i < count; i++)
   {
-    if (i > 0) {
+    if (i > 0)
+    {
       ss << ",";
     }
     BLEAdvertisedDevice d = foundDevices.getDevice(i);
@@ -91,7 +85,7 @@ void setup()
     if (d.haveManufacturerData())
     {
       std::string md = d.getManufacturerData();
-      uint8_t* mdp = (uint8_t*)d.getManufacturerData().data();
+      uint8_t *mdp = (uint8_t *)d.getManufacturerData().data();
       char *pHex = BLEUtils::buildHexData(nullptr, mdp, md.length());
       ss << ",\"ManufacturerData\":\"" << pHex << "\"";
       free(pHex);
@@ -99,7 +93,7 @@ void setup()
 
     if (d.haveServiceUUID())
     {
-      ss << ",\"ServiceUUID\":\"" << d.getServiceUUID().toString() << "\"" ;
+      ss << ",\"ServiceUUID\":\"" << d.getServiceUUID().toString() << "\"";
     }
 
     if (d.haveTXPower())
@@ -111,9 +105,7 @@ void setup()
   }
   ss << "]";
 
-#ifdef SERIAL_PRINT
-  Serial.println("Scan done!");
-#endif
+  log_i("Scan done!");
 
   wifiMulti.addAP(WIFI_SSID, WIFI_PASSWORD);
 }
@@ -123,17 +115,13 @@ void loop()
   // wait for WiFi connection
   if ((wifiMulti.run() == WL_CONNECTED))
   {
-#ifdef SERIAL_PRINT
-    Serial.println("WiFi Connected");
-#endif
+    log_i("WiFi Connected");
+
     // HTTP POST BLE list
     HTTPClient http;
 
-#ifdef SERIAL_PRINT
-    Serial.println("Payload:");
-    Serial.println(ss.str().c_str());
-    Serial.println("[HTTP] begin...");
-#endif
+    log_i("[HTTP] Payload:\n%s", ss.str().c_str());
+    log_i("[HTTP] Begin...");
 
     // configure traged server and url
     http.begin(POST_URL);
@@ -145,23 +133,17 @@ void loop()
     if (httpCode > 0)
     {
       // HTTP header has been send and Server response header has been handled
-#ifdef SERIAL_PRINT
-      Serial.printf("[HTTP] GET... code: %d\n", httpCode);
-#endif
+      log_i("[HTTP] GET... code: %d\n", httpCode);
 
       // file found at server
       if (httpCode == HTTP_CODE_OK)
       {
-#ifdef SERIAL_PRINT
-        Serial.println(http.getString());
-#endif
+        log_i("[HTTP] Response:\n%s", http.getString());
       }
     }
     else
     {
-#ifdef SERIAL_PRINT
-      Serial.printf("[HTTP] GET... failed, error: %s\n", http.errorToString(httpCode).c_str());
-#endif
+      log_i("[HTTP] GET... failed, error: %s\n", http.errorToString(httpCode).c_str());
     }
 
     http.end();
@@ -169,20 +151,19 @@ void loop()
   }
 
   // wait WiFi connected
-  if (data_sent || (wait_wifi_counter > WAIT_WIFI_LOOP)) {
+  if (data_sent || (wait_wifi_counter > WAIT_WIFI_LOOP))
+  {
     esp_sleep_enable_timer_wakeup(SLEEP_TIME * 1000000); // translate second to micro second
 
-#ifdef SERIAL_PRINT
-    Serial.printf("Enter deep sleep for %d seconds...\n", SLEEP_TIME);
-#endif
+    log_i("Enter deep sleep for %d seconds...\n", SLEEP_TIME);
 
     esp_wifi_stop();
     esp_deep_sleep_start();
-  } else {
+  }
+  else
+  {
     wait_wifi_counter++;
 
-#ifdef SERIAL_PRINT
-    Serial.printf("Waiting count: %d\n", wait_wifi_counter);
-#endif
+    log_i("Waiting count: %d\n", wait_wifi_counter);
   }
 }

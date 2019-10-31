@@ -48,8 +48,8 @@ void setup()
   log_i("disable brownout detector");
   WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);
 
-  log_i("BLEDevice::init(LOG_TAG)");
-  BLEDevice::init(LOG_TAG);
+  log_i("BLEDevice::init()");
+  BLEDevice::init("");
 
   // put your main code here, to run repeatedly:
   BLEScan *pBLEScan = BLEDevice::getScan(); //create new scan
